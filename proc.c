@@ -605,19 +605,50 @@ updateTimes()
 
 int
 wait2(int *retime, int *rutime, int* stime) {
- int childPid=wait();
- struct proc* p;
- if (childPid<0)
-  return childPid;
- for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->pid != childPid)
+  struct proc *p;
+  int havekids, pid;
+
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for zombie children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != proc)
         continue;
-    *retime=p->retime;
-    *rutime=p->rutime;
-    *stime=p->stime;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        *retime=p->retime;
+        *rutime=p->rutime;
+        *stime=p->stime;
+        p->retime=0;
+        p->rutime=0;
+        p->stime=0;
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || proc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
- return childPid;
 }
+
 
 int
 set_prio(int priority){
