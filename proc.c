@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -145,6 +146,9 @@ fork(void)
   }
   np->sz = proc->sz;
   np->parent = proc;
+  np->retime=0;
+  np->rutime=0;
+  np->stime=0;
   np->priority=proc->priority;
   *np->tf = *proc->tf;
 
