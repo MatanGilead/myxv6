@@ -15,6 +15,11 @@
 void
 getStatistics(int n){
   int i;
+
+  int CPUtotalCounter=0;
+  int SCPUtotalCounter=0;
+  int IOtotalCounter=0;
+
   int CPUtotalRetime=0;
   int SCPUtotalRetime=0;
   int IOtotalRetime=0;
@@ -38,32 +43,35 @@ getStatistics(int n){
       CPUtotalRetime+=retime;
       CPUtotalRutime+=rutime;
       CPUtotalStime+=stime;
+      CPUtotalCounter++;
     }
     else if (pid%3==1) {
       type=SCPU;
       SCPUtotalRetime+=retime;
       SCPUtotalRutime+=rutime;
       SCPUtotalStime+=stime;
+      SCPUtotalCounter++;
     }
     else {
-    type=IO;
-    IOtotalRetime+=retime;
-    IOtotalRutime+=rutime;
-    IOtotalStime+=stime;
+      type=IO;
+      IOtotalRetime+=retime;
+      IOtotalRutime+=rutime;
+      IOtotalStime+=stime;
+      IOtotalCounter++;
     }
   printf(1,"Process PID: %d, Type: %s, Wait: %d  Running: %d   Sleep: %d\n",pid,type,retime,rutime,stime);
   }
-  printf(1, "CPU  Avg. Ready Time: %d\n", CPUtotalRetime/3*n);
-  printf(1, "SCPU Avg. Ready Time: %d\n", SCPUtotalRetime/3*n);
-  printf(1, "IO   Avg. Ready Time: %d\n\n", IOtotalRetime/3*n);
+  printf(1, "CPU  Avg. Ready Time: %d\n", CPUtotalRetime/CPUtotalCounter);
+  printf(1, "SCPU Avg. Ready Time: %d\n", SCPUtotalRetime/SCPUtotalCounter);
+  printf(1, "IO   Avg. Ready Time: %d\n\n", IOtotalRetime/IOtotalCounter);
 
-  printf(1, "CPU  Avg. Run Time: %d\n", CPUtotalRutime/3*n);
-  printf(1, "SCPU Avg. Run Time: %d\n", SCPUtotalRutime/3*n);
-  printf(1, "IO   Avg. Run Time: %d\n\n", IOtotalRutime/3*n);
+  printf(1, "CPU  Avg. Run Time: %d\n", CPUtotalRutime/CPUtotalCounter);
+  printf(1, "SCPU Avg. Run Time: %d\n", SCPUtotalRutime/SCPUtotalCounter);
+  printf(1, "IO   Avg. Run Time: %d\n\n", IOtotalRutime/IOtotalCounter);
 
-  printf(1, "CPU  Avg. Sleep Time: %d\n", (CPUtotalStime+CPUtotalRutime+CPUtotalRetime)/3*n);
-  printf(1, "SCPU Avg. Sleep Time: %d\n", (SCPUtotalStime+SCPUtotalRutime+SCPUtotalRetime)/3*n);
-  printf(1, "IO   Avg. Sleep Time: %d\n\n", (IOtotalStime+IOtotalRutime+IOtotalRetime)/3*n);
+  printf(1, "CPU  Avg. Sleep Time: %d\n", (CPUtotalStime+CPUtotalRutime+CPUtotalRetime)/CPUtotalCounter);
+  printf(1, "SCPU Avg. Sleep Time: %d\n", (SCPUtotalStime+SCPUtotalRutime+SCPUtotalRetime)/SCPUtotalCounter);
+  printf(1, "IO   Avg. Sleep Time: %d\n\n", (IOtotalStime+IOtotalRutime+IOtotalRetime)/IOtotalCounter);
 }
 
 
