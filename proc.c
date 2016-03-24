@@ -47,6 +47,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->priority=DEF_PRIORITY;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -55,11 +56,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -80,7 +81,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -108,7 +109,7 @@ int
 growproc(int n)
 {
   uint sz;
-  
+
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -144,6 +145,7 @@ fork(void)
   }
   np->sz = proc->sz;
   np->parent = proc;
+  np->priority=proc->priority;
   *np->tf = *proc->tf;
 
   // Clear %eax so that fork returns 0 in the child.
@@ -155,14 +157,14 @@ fork(void)
   np->cwd = idup(proc->cwd);
 
   safestrcpy(np->name, proc->name, sizeof(proc->name));
- 
+
   pid = np->pid;
 
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
   np->state = RUNNABLE;
   release(&ptable.lock);
-  
+
   return pid;
 }
 
@@ -262,9 +264,10 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+
+
 void
-scheduler(void)
-{
+scheduler_def(void) {
   struct proc *p;
 
   for(;;){
@@ -293,6 +296,112 @@ scheduler(void)
     release(&ptable.lock);
 
   }
+}
+
+
+void
+scheduler_fcfs(void) {
+  struct proc *p,*chosenProc;
+  for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    chosenProc=0;
+
+    //Set chosenProc to the runnable proc with the minimum creation time.
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state == RUNNABLE && (!chosenProc || (p->ctime <= chosenProc->ctime)))
+        chosenProc=p;
+    }
+
+    if (!chosenProc) continue;
+
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    proc=chosenProc;
+
+    //run process untill its no longer need cpu time
+    while(proc->state==RUNNABLE) {
+      switchuvm(chosenProc);
+      chosenProc->state = RUNNING;
+      swtch(&cpu->scheduler, proc->context);
+      switchkvm();
+   }
+
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    proc = 0;
+    release(&ptable.lock);
+  }
+}
+
+void
+scheduler_sml(void) {
+  struct proc *p,*chosenProc;
+  int priority;
+  int beenInside=0;
+
+  for(;;){
+    //we start at MAX_PRIORITY, if we didnt find a process then we decrease the priority. if we found one, we resets it to max priority.
+    if (beenInside && !chosenProc && priority>MIN_PRIORITY)
+        priority--;
+    else priority=MAX_PRIORITY;
+
+    // Enable interrupts on this processor.
+    sti();
+    chosenProc=0;
+    beenInside=1;
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE && p->priority!=priority)
+        continue;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      chosenProc=p;
+      proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+      swtch(&cpu->scheduler, proc->context);
+      switchkvm();
+
+      if (p->priority>priority)
+        priority=MAX_PRIORITY;
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      proc = 0;
+    }
+    release(&ptable.lock);
+
+  }
+}
+
+
+void
+scheduler_dml(void) {
+  for (;;){}
+}
+
+void
+scheduler(void)
+{
+#if SCHEDFLAG == DEFAULT
+  scheduler_def();
+#elif SCHEDFLAG == FCFS
+  scheduler_fcfs();
+#elif SCHEDFLAG == SML
+  scheduler_sml();
+#elif SCHEDFLAG == DML
+  scheduler_dml();
+#else
+  #warning Unsupported SCHEDFLAG
+#endif
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -336,13 +445,13 @@ forkret(void)
 
   if (first) {
     // Some initialization functions must be run in the context
-    // of a regular process (e.g., they call sleep), and thus cannot 
+    // of a regular process (e.g., they call sleep), and thus cannot
     // be run from main().
     first = 0;
     iinit(ROOTDEV);
     initlog(ROOTDEV);
   }
-  
+
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -394,6 +503,7 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
       p->state = RUNNABLE;
+
 }
 
 // Wake up all processes sleeping on chan.
@@ -447,7 +557,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -463,4 +573,44 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+
+void
+updateTimes()
+{
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNING)
+      p->rutime++;
+    if(p->state == SLEEPING)
+      p->stime++;
+    }
+}
+
+int
+wait2(int *retime, int *rutime, int* stime) {
+ int childPid=wait();
+ struct proc* p;
+ if (childPid<0)
+  return childPid;
+ for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->pid != childPid)
+        continue;
+    *retime=p->retime;
+    *rutime=p->rutime;
+    *stime=p->stime;
+  }
+ return childPid;
+}
+
+int
+set_prio(int priority){
+  #if SCHEDFLAG == SML
+  return -1;
+  #endif
+  if ((priority>MAX_PRIORITY) | (priority<MIN_PRIORITY))
+    return -1;
+  proc->priority=priority;
+  return 0;
 }

@@ -61,7 +61,7 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
-  
+
   if(argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
@@ -83,9 +83,34 @@ int
 sys_uptime(void)
 {
   uint xticks;
-  
+
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int
+sys_wait2(void)
+{
+  int retime;
+  int rutime;
+  int stime;
+  if(argint(0,&retime) < 0)
+    return -1;
+  if(argint(1,&rutime) < 0)
+    return -1;
+  if(argint(2,&stime) < 0)
+    return -1;
+  return wait2((int*)retime, (int*)rutime, (int*)stime);
+}
+
+
+int
+sys_set_prio(void)
+{
+  int priority;
+  if (argint(0,&priority) <0)
+    return -1;
+  return set_prio(priority);
 }

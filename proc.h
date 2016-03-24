@@ -1,6 +1,12 @@
 // Segments in proc->gdt.
-#define NSEGS     7
-
+#define NSEGS            7
+#define MIN_PRIORITY     1
+#define DEF_PRIORITY     2
+#define MAX_PRIORITY     3
+#define DEFAULT          1
+#define FCFS             2
+#define SML              3
+#define DML              4
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below
@@ -10,7 +16,7 @@ struct cpu {
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
-  
+
   // Cpu-local storage variables; see below
   struct cpu *cpu;
   struct proc *proc;           // The currently-running process.
@@ -66,6 +72,11 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  uint ctime;                  // Creation time
+  uint stime;                  // sleeping time - waiting for i/o
+  uint retime;                 // Ready time
+  uint rutime;                 // Running time
+  uint priority;               // Process priority in SML & DML
 };
 
 // Process memory is laid out contiguously, low addresses first:
