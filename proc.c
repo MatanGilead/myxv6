@@ -316,7 +316,10 @@ scheduler_fcfs(void) {
         chosenProc=p;
     }
 
-    if (!chosenProc) continue;
+    if (!chosenProc) {
+     release(&ptable.lock);
+     continue;
+   }
 
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
@@ -340,24 +343,25 @@ scheduler_fcfs(void) {
 
 void
 scheduler_sml(void) {
-  struct proc *p,*chosenProc;
-  int priority;
+  struct proc *p,*chosenProc=0;
+  uint priority;
   int beenInside=0;
 
   for(;;){
+    // Enable interrupts on this processor.
+    sti();
+    acquire(&ptable.lock);
     //we start at MAX_PRIORITY, if we didnt find a process then we decrease the priority. if we found one, we resets it to max priority.
     if (beenInside && !chosenProc && priority>MIN_PRIORITY)
         priority--;
-    else priority=MAX_PRIORITY;
+    else
+      priority=MAX_PRIORITY;
 
-    // Enable interrupts on this processor.
-    sti();
     chosenProc=0;
     beenInside=1;
     // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE && p->priority!=priority)
+      if((p->state != RUNNABLE) || (p->priority!=priority))
         continue;
 
       // Switch to chosen process.  It is the process's job
@@ -369,9 +373,9 @@ scheduler_sml(void) {
       p->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
-
+      //  If a system call to change priority has been made, we need to relate this.
       if (p->priority>priority)
-        priority=MAX_PRIORITY;
+        priority=p->priority;
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
@@ -385,7 +389,7 @@ scheduler_sml(void) {
 
 void
 scheduler_dml(void) {
-  for (;;){}
+  scheduler_sml();
 }
 
 void
@@ -480,6 +484,9 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   proc->chan = chan;
   proc->state = SLEEPING;
+#if SCHEDFLAG == DML
+  proc->priority=MAX_PRIORITY;
+#endif
   sched();
 
   // Tidy up.
@@ -501,8 +508,12 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan){
+      #if SCHEDFLAG == DML
+      p->priority=MAX_PRIORITY;
+      #endif
       p->state = RUNNABLE;
+    }
 
 }
 
@@ -606,7 +617,7 @@ wait2(int *retime, int *rutime, int* stime) {
 
 int
 set_prio(int priority){
-  #if SCHEDFLAG == SML
+  #if SCHEDFLAG == DML
   return -1;
   #endif
   if ((priority>MAX_PRIORITY) | (priority<MIN_PRIORITY))
