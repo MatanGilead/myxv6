@@ -316,7 +316,7 @@ scheduler_fcfs(void) {
 
     //Set chosenProc to the runnable proc with the minimum creation time.
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state == RUNNABLE && (!chosenProc || (p->ctime <= chosenProc->ctime)))
+      if(p->state == RUNNABLE && (!chosenProc || (p->ctime < chosenProc->ctime)))
         chosenProc=p;
     }
 
@@ -488,9 +488,6 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   proc->chan = chan;
   proc->state = SLEEPING;
-#if SCHEDFLAG == DML
-  proc->priority=MAX_PRIORITY;
-#endif
   sched();
 
   // Tidy up.
@@ -596,6 +593,8 @@ updateTimes()
 {
   struct proc *p;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNABLE)
+      p->retime++;
     if(p->state == RUNNING)
       p->rutime++;
     if(p->state == SLEEPING)

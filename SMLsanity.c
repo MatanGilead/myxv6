@@ -5,7 +5,7 @@
 #define NUM_OF_DUMMY_LOOPS 100
 #define NUM_OF_ITERATIONS 1000000
 #define NUM_OF_LOTS 21
-#define NUM_PROC_PER_PRIORITY 21/3
+#define NUM_PROC_PER_PRIORITY (NUM_OF_LOTS/3)
 #define MAX_PRIORITY 3
 int array [NUM_OF_LOTS][2];
 
@@ -30,8 +30,8 @@ for(l=0;l<NUM_OF_LOTS;l++){
   for (i=0;i<NUM_OF_DUMMY_LOOPS;i++){
     for (j=0;j<NUM_OF_ITERATIONS;j++){
     }
-  exit();
   }
+  exit();
 }
 
 
@@ -40,13 +40,13 @@ for(l=0;l<NUM_OF_LOTS;l++){
   int rutime;
   int stime;
   int pid=wait2(&retime,&rutime,&stime);
-  int turnaroundTime=retime+rutime;
+  int turnaroundTime=retime+rutime+stime;
   for(i=0;i<NUM_OF_LOTS;i++) {
     if (array[i][0]==pid)
       break;
   }
   int priority=array[i][1];
-  printf(1,"PID %d with priority %d has turnaround time of %d\n",pid,priority,turnaroundTime);
+  printf(1,"PID: %d  Priority: %d Ready: %d Running: %d Sleep: %d Turnaround: %d\n",pid,priority,retime,rutime,stime,turnaroundTime);
   if (priority==1) totalPriorityMIN+=turnaroundTime;
   if (priority==2) totalPriorityMIDDLE+=turnaroundTime;
   if (priority==3) totalPriorityMAX+=turnaroundTime;

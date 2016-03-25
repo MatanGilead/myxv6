@@ -69,9 +69,13 @@ getStatistics(int n){
   printf(1, "SCPU Avg. Run Time: %d\n", SCPUtotalRutime/SCPUtotalCounter);
   printf(1, "IO   Avg. Run Time: %d\n\n", IOtotalRutime/IOtotalCounter);
 
-  printf(1, "CPU  Avg. Sleep Time: %d\n", (CPUtotalStime+CPUtotalRutime+CPUtotalRetime)/CPUtotalCounter);
-  printf(1, "SCPU Avg. Sleep Time: %d\n", (SCPUtotalStime+SCPUtotalRutime+SCPUtotalRetime)/SCPUtotalCounter);
-  printf(1, "IO   Avg. Sleep Time: %d\n\n", (IOtotalStime+IOtotalRutime+IOtotalRetime)/IOtotalCounter);
+  printf(1, "CPU  Avg. Sleep Time: %d\n", (CPUtotalStime)/CPUtotalCounter);
+  printf(1, "SCPU Avg. Sleep Time: %d\n", (SCPUtotalStime)/SCPUtotalCounter);
+  printf(1, "IO   Avg. Sleep Time: %d\n\n", (IOtotalStime)/IOtotalCounter);
+
+  printf(1, "CPU  Avg. Turnaround Time: %d\n", (CPUtotalStime+CPUtotalRutime+CPUtotalRetime)/CPUtotalCounter);
+  printf(1, "SCPU Avg. Turnaround Time: %d\n", (SCPUtotalStime+SCPUtotalRutime+SCPUtotalRetime)/SCPUtotalCounter);
+  printf(1, "IO   Avg. Turnaround Time: %d\n\n", (IOtotalStime+IOtotalRutime+IOtotalRetime)/IOtotalCounter);
 }
 
 
