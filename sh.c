@@ -165,6 +165,18 @@ main(void)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
     }
+    if(buf[0] == 'h' && buf[1] == 'i' && buf[2] == 's' && buf[3] == 't' && buf[4] == 'o' && buf[5] == 'r' && buf[6] == 'y'){ // same as cd above
+      char historyBuffer[128];
+      int bool = 1;
+      int i;
+      for(i=0; i<16 && bool; i++){
+	if(history(historyBuffer, i) == 0){
+	  printf(2,"%s", historyBuffer);
+	}
+	else break;
+      }
+      continue;
+    }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait();

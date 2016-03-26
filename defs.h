@@ -153,6 +153,7 @@ int             fetchint(uint, int*);
 int             fetchstr(uint, char**);
 void            syscall(void);
 int             wait2(int*, int*, int*);
+int 		history(char * buffer, int historyId);
 int 						set_prio(int);
 
 // timer.c

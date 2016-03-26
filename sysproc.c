@@ -107,6 +107,19 @@ sys_wait2(void)
 
 
 int
+sys_history(void)
+{
+  char *historyBuffer;
+  int i;
+  if((argstr(0, &historyBuffer) < 0) || (argint(1, &i) < 0)){
+    return -2;
+  }
+ // cprintf("got here");
+  return history(historyBuffer, i);
+}
+
+
+int
 sys_set_prio(void)
 {
   int priority;

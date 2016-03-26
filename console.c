@@ -335,24 +335,24 @@ consoleintr(int (*getc)(void))
       break;
     case KEY_UP:
       if (commandExecuted == 0 && historyArrayIsFull == 0) { // no history yet, nothing been executed
-        break;
+	break;
       }
       else if (commandExecuted-currentHistoryPos == 0 && historyArrayIsFull==0) { // we are at the last command executed, can't go up
-        break;
+	break;
       }
       else if (currentHistoryPos != MAX_HISTORY) { // can perform history execution.
-  if(currentHistoryPos < MAX_HISTORY){
-    currentHistoryPos = currentHistoryPos + 1;
-  }
-        DeleteCurrentUnfinishedCommand();
-        int tmpIndex = modThatDealsWithNegatives((commandExecuted - currentHistoryPos), MAX_HISTORY);
-  int j;
-  for (j = 0 ; j<strlen(historyArray[tmpIndex])-1 ; j++){
-    c = historyArray[tmpIndex][j];
-          input.buf[input.w++ % INPUT_BUF] = c;
-    input.e++;
-  }
-        consputc(KEY_UP);
+	if(currentHistoryPos < MAX_HISTORY){
+	  currentHistoryPos = currentHistoryPos + 1;
+	}
+	DeleteCurrentUnfinishedCommand();
+	int tmpIndex = modThatDealsWithNegatives((commandExecuted - currentHistoryPos), MAX_HISTORY);
+	int j;
+	for (j = 0 ; j<strlen(historyArray[tmpIndex])-1 ; j++){
+	  c = historyArray[tmpIndex][j];
+		input.buf[input.w++ % INPUT_BUF] = c;
+	  input.e++;
+	}
+	  consputc(KEY_UP);
       }
       break;
 
@@ -364,55 +364,76 @@ consoleintr(int (*getc)(void))
         break;
       }
       else if (currentHistoryPos) {
-  currentHistoryPos = currentHistoryPos - 1;
-        DeleteCurrentUnfinishedCommand();
-        int tmpIndex = modThatDealsWithNegatives((commandExecuted - currentHistoryPos), MAX_HISTORY);
-  int j;
-  for (j = 0 ; j<strlen(historyArray[tmpIndex])-1 ; j++){
-    c = historyArray[tmpIndex][j];
-          input.buf[input.w++ % INPUT_BUF] = c;
-    input.e++;
-  }
-        consputc(KEY_DN);
+	currentHistoryPos = currentHistoryPos - 1;
+	      DeleteCurrentUnfinishedCommand();
+	      int tmpIndex = modThatDealsWithNegatives((commandExecuted - currentHistoryPos), MAX_HISTORY);
+	int j;
+	for (j = 0 ; j<strlen(historyArray[tmpIndex])-1 ; j++){
+	  c = historyArray[tmpIndex][j];
+		input.buf[input.w++ % INPUT_BUF] = c;
+	  input.e++;
+	}
+	      consputc(KEY_DN);
       }
       break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
-        c = (c == '\r') ? '\n' : c;
-  if (c != '\n') { // regular write, not execute
-    int forwardPos = input.e;
-    int j;
-    for (j = 0 ; j<input.e-input.w ; j++){
-      input.buf[forwardPos % INPUT_BUF] = input.buf[forwardPos-1 % INPUT_BUF];
-      forwardPos--;
-    }
-    input.buf[input.w++ % INPUT_BUF] = c;
-    input.e++;
-  }
-  else {
-    input.buf[input.e++ % INPUT_BUF] = c;
-  }
-        consputc(c);
-        if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
-    currentHistoryPos=0;
-          int tmpHistoryIndex;
-    for (tmpHistoryIndex = 0 ; tmpHistoryIndex < input.e-input.r ; tmpHistoryIndex++){ // copy the command from the buffer to the historyArray at current position
-      historyArray[commandExecuted][tmpHistoryIndex] = input.buf[input.r+tmpHistoryIndex % INPUT_BUF]; // copy chars from buffer to array
-    }
-
-          if (commandExecuted == MAX_HISTORY-1)
-            historyArrayIsFull = 1;
-    commandExecuted = (commandExecuted+1) % MAX_HISTORY;
-
-          input.w = input.e;
-          wakeup(&input.r);
-        }
+	c = (c == '\r') ? '\n' : c;
+	if (c != '\n') { // regular write, not execute
+	  int forwardPos = input.e;
+	  int j;
+	  for (j = 0 ; j<input.e-input.w ; j++){
+	    input.buf[forwardPos % INPUT_BUF] = input.buf[forwardPos-1 % INPUT_BUF];
+	    forwardPos--;
+	  }
+	  input.buf[input.w++ % INPUT_BUF] = c;
+	  input.e++;
+	}
+	else {
+	  input.buf[input.e++ % INPUT_BUF] = c;
+	}
+	consputc(c);
+	if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
+	  currentHistoryPos=0;
+	  int tmpHistoryIndex;
+	  for (tmpHistoryIndex = 0 ; tmpHistoryIndex < input.e-input.r ; tmpHistoryIndex++){ // copy the command from the buffer to the historyArray at current position
+	    historyArray[commandExecuted][tmpHistoryIndex] = input.buf[input.r+tmpHistoryIndex % INPUT_BUF]; // copy chars from buffer to array
+	  }
+	  if (commandExecuted == MAX_HISTORY-1)
+	    historyArrayIsFull = 1;
+	  commandExecuted = (commandExecuted+1) % MAX_HISTORY;
+	  input.w = input.e;
+	  wakeup(&input.r);
+	}
       }
       break;
     }
   }
   release(&input.lock);
 }
+
+
+/*
+char historyArray[MAX_HISTORY][INPUT_BUF];
+int commandExecuted = 0;
+int historyArrayIsFull = 0; // 1 = FULL , 0 = empty
+int currentHistoryPos = 0;
+*/
+
+int 
+history(char * buffer, int historyId){
+  if(commandExecuted != 0 && historyId < commandExecuted){
+    memmove(buffer, historyArray[historyId], INPUT_BUF);
+    return 0;
+  }
+  else if(commandExecuted != 0 && historyArray[historyId] == 0){
+    return -1;
+  }
+  else{
+    return -2;
+  }
+}
+
 
 int
 consoleread(struct inode *ip, char *dst, int n)
@@ -480,3 +501,4 @@ consoleinit(void)
   picenable(IRQ_KBD);
   ioapicenable(IRQ_KBD, 0);
 }
+

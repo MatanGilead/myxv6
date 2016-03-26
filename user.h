@@ -24,6 +24,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int wait2(int *retime, int *rutime, int *stime);
+int history(char * buffer, int historyId);
 int set_prio(int priority);
 int yield(void);
 
