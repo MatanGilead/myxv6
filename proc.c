@@ -18,7 +18,8 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
-
+extern uint ticks;
+extern struct spinlock tickslock;
 static void wakeup1(void *chan);
 
 void
@@ -49,6 +50,9 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->priority=DEF_PRIORITY;
+  acquire(&tickslock);
+  p->ctime=ticks;
+  release(&tickslock);
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -97,6 +101,7 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
+
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -347,49 +352,42 @@ scheduler_fcfs(void) {
 
 void
 scheduler_sml(void) {
-  struct proc *p,*chosenProc=0;
+  struct proc *p;
   uint priority;
-  int beenInside=0;
 
   for(;;){
     // Enable interrupts on this processor.
     sti();
     acquire(&ptable.lock);
-    //we start at MAX_PRIORITY, if we didnt find a process then we decrease the priority. if we found one, we resets it to max priority.
-    if (beenInside && !chosenProc && priority>MIN_PRIORITY)
-        priority--;
-    else
-      priority=MAX_PRIORITY;
-
-    chosenProc=0;
-    beenInside=1;
+    for(priority=MAX_PRIORITY;priority>=MIN_PRIORITY;priority--) {
     // Loop over process table looking for process to run.
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if((p->state != RUNNABLE) || (p->priority!=priority))
-        continue;
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if((p->state != RUNNABLE) || (p->priority!=priority))
+          continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      chosenProc=p;
-      proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      swtch(&cpu->scheduler, proc->context);
-      switchkvm();
-      //  If a system call to change priority has been made, we need to relate this.
-      if (p->priority>priority)
-        priority=p->priority;
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      proc = 0;
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&cpu->scheduler, proc->context);
+        switchkvm();
+        //  If a system call to change priority has been made, we need to relate this.
+        #if SCHEDFLAG == SML
+        if (p->state==RUNNABLE && p->priority>priority){
+          priority=p->priority+1;
+          break;
+        }
+        #endif
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        proc = 0;
+      }
     }
-    release(&ptable.lock);
-
+      release(&ptable.lock);
   }
 }
-
 
 void
 scheduler_dml(void) {
